@@ -62,7 +62,7 @@ PackageParser.prototype._flush = function ppFlush(done) {
   if (this.pp_cur && this.pp_cur.Filename)
     this.push(this.pp_cur);
 
-  done(err);
+  done();
 };
 
 var mantaClient = manta.createBinClient({
@@ -131,7 +131,10 @@ var req = http.get(packagePath);
 req.on('response', function(res) {
   var mantaDest = util.format('%s/dists/%s/%s/binary-%s/Packages',
                               MANTA_BASE, RELEASE, COMPONENT, ARCH);
-  mantaClient.put(mantaDest, res, { mkdirs: true }, function afterPut(err, res) {
+
+  var dest = mantaClient.createWriteStream(mantaDest, { mkdirs: true });
+
+  dest.on('finish', function afterPut(err, res) {
     if (err) {
       console.error('failed to put Package file');
       console.error(err);
@@ -139,6 +142,8 @@ req.on('response', function(res) {
     }
     LOG.info('put Package file');
   });
+
+  res.pipe(dest);
 
   res.pipe(new lstream()).pipe(new PackageParser())
     .pipe(new MantaSync())
