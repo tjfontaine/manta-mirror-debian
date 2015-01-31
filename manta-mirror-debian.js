@@ -99,7 +99,7 @@ function syncPackage(pkg, cb) {
 function MantaSync() {
   Transform.call(this, {
     objectMode: true,
-    highWaterMark: 1,
+    highWaterMark: MANTA_PARALLEL,
   });
 
   this.ms_queue = vasync.queue(syncPackage, MANTA_PARALLEL);
@@ -110,8 +110,13 @@ MantaSync.prototype._transform = function msTransform(chunk, enc, done) {
   var checkPath = util.format('%s/%s', MANTA_BASE, chunk.Filename);
   var self = this;
   mantaClient.info(checkPath, function infoCheck(info_err, info_meta) {
-    if (info_err && info_err.statusCode === 404)
+    if (info_err && info_err.statusCode === 404) {
       self.ms_queue.push(chunk);
+      return done();
+    } else if (info_err) {
+      console.error(info_err);
+      process.exit(2);
+    }
 
     var md5 = new Buffer(info_meta.md5, 'base64');
     md5 = md5.toString('hex');
