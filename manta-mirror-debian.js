@@ -24,9 +24,6 @@ var ARCH='i386';
 var MANTA_BASE='/NodeCore/public/ubuntu/';
 var MANTA_PARALLEL=1;
 
-var packagePath = util.format('%s/dists/%s/%s/binary-%s/Packages',
-                              HOSTNAME, RELEASE, COMPONENT, ARCH);
-
 function PackageParser() {
   Transform.call(this, {
     decodeStrings: false,
@@ -62,14 +59,8 @@ PackageParser.prototype._transform = function ppTransform(chunk, enc, done) {
 };
 
 PackageParser.prototype._flush = function ppFlush(done) {
-  var err;
-
-  if(this.pp_cur) {
-    if (this.pp_cur.file && this.pp_cur.md5)
-      this.push(this.pp_cur);
-    else
-      err = new Error('incomplete package: ' + util.inspect(this.pp_cur));
-  }
+  if (this.pp_cur && this.pp_cur.Filename)
+    this.push(this.pp_cur);
 
   done(err);
 };
@@ -130,9 +121,25 @@ MantaSync.prototype._transform = function msTransform(chunk, enc, done) {
 
 // XXX Main
 
+var packagePath = util.format('%s/dists/%s/%s/binary-%s/Packages',
+                              HOSTNAME, RELEASE, COMPONENT, ARCH);
+
 LOG.info('getting', packagePath);
+
 var req = http.get(packagePath);
+
 req.on('response', function(res) {
+  var mantaDest = util.format('%s/dists/%s/%s/binary-%s/Packages',
+                              MANTA_BASE, RELEASE, COMPONENT, ARCH);
+  mantaClient.put(mantaDest, res, { mkdirs: true }, function afterPut(err, res) {
+    if (err) {
+      console.error('failed to put Package file');
+      console.error(err);
+      process.exit(2);
+    }
+    LOG.info('put Package file');
+  });
+
   res.pipe(new lstream()).pipe(new PackageParser())
     .pipe(new MantaSync())
     .resume();
