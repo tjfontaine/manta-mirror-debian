@@ -1,6 +1,6 @@
 {
   "name": "manta-mirror-debian",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Mirror debian repositories into manta",
   "main": "manta-mirror-debian.js",
   "dependencies": {
