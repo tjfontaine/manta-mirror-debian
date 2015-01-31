@@ -110,8 +110,14 @@ MantaSync.prototype._transform = function msTransform(chunk, enc, done) {
   var checkPath = util.format('%s/%s', MANTA_BASE, chunk.Filename);
   var self = this;
   mantaClient.info(checkPath, function infoCheck(info_err, info_meta) {
-    if ((info_err && info_err.statusCode === 404) ||
-        (info_meta && info_meta.md5 !== chunk.MD5sum)) {
+    if (info_err && info_err.statusCode === 404)
+      self.ms_queue.push(chunk);
+
+    var md5 = new Buffer(info_meta.md5, 'base64');
+    md5 = md5.toString('hex');
+
+    if (info_meta && md5 !== chunk.MD5sum) {
+      LOG.info('md5 mismatch', info_meta, chunk);
       self.ms_queue.push(chunk);
     }
     done();
